@@ -1,5 +1,7 @@
 package gooauth2gorm
 
+import "time"
+
 type DBType int
 
 const (
@@ -15,6 +17,6 @@ type Config struct {
 	Table           string
 	MaxIdleConns    int
 	MaxOpenConns    int
-	ConnMaxLifetime int
+	ConnMaxLifetime time.Duration
 	DBType          DBType
 }

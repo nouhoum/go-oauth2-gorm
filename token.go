@@ -60,6 +60,15 @@ func NewTokenStore(cfg *Config, table string, gcInterval int) *TokenStore {
 		panic(err)
 	}
 
+	sqlDB, err := db.DB()
+	if err != nil {
+		panic(err)
+	}
+
+	sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
+	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
+	sqlDB.SetConnMaxLifetime(cfg.ConnMaxLifetime)
+
 	store := &TokenStore{
 		table: table,
 		db:    db,
