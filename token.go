@@ -76,7 +76,7 @@ func NewTokenStore(cfg *Config, gcInterval int) *TokenStore {
 	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
 	sqlDB.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 
-	return NewTokenStoreWithDB(cfg, db)
+	return NewTokenStoreWithDB(cfg, db, gcInterval)
 }
 
 func NewTokenStoreWithDB(cfg *Config, db *gorm.DB, gcInterval int) *TokenStore {
@@ -95,6 +95,11 @@ func NewTokenStoreWithDB(cfg *Config, db *gorm.DB, gcInterval int) *TokenStore {
 	}
 	ts.ticker = time.NewTicker(time.Second * time.Duration(interval))
 
+	if !db.Migrator().HasTable(ts.table) {
+		if err := db.Table(ts.table).Migrator().CreateTable(&Token{}); err != nil {
+			panic(err)
+		}
+	}
 	go ts.gc()
 	return ts
 }
