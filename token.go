@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"time"
 
 	"github.com/go-oauth2/oauth2/v4"
 	"github.com/go-oauth2/oauth2/v4/models"
@@ -14,6 +16,10 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
+)
+
+const (
+	defaultTable = "oauth2_token"
 )
 
 type Token struct {
@@ -29,9 +35,10 @@ type TokenStore struct {
 	db     *gorm.DB
 	table  string
 	stdout io.Writer
+	ticker *time.Ticker
 }
 
-func NewTokenStore(cfg *Config, table string, gcInterval int) *TokenStore {
+func NewTokenStore(cfg *Config, gcInterval int) *TokenStore {
 	if cfg == nil {
 		panic(errors.New("db config is null"))
 	}
@@ -69,19 +76,27 @@ func NewTokenStore(cfg *Config, table string, gcInterval int) *TokenStore {
 	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
 	sqlDB.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 
-	store := &TokenStore{
-		table: table,
-		db:    db,
-	}
-	return store
+	return NewTokenStoreWithDB(cfg, db)
 }
 
-func NewTokenStoreWithDB(db *gorm.DB, table string, gcInterval int) *TokenStore {
-	store := &TokenStore{
+func NewTokenStoreWithDB(cfg *Config, db *gorm.DB, gcInterval int) *TokenStore {
+	ts := &TokenStore{
 		db:    db,
-		table: table,
+		table: defaultTable,
 	}
-	return store
+
+	if cfg.Table != "" {
+		ts.table = cfg.Table
+	}
+
+	interval := 600
+	if gcInterval > 0 {
+		interval = gcInterval
+	}
+	ts.ticker = time.NewTicker(time.Second * time.Duration(interval))
+
+	go ts.gc()
+	return ts
 }
 
 func (ts TokenStore) Create(ctx context.Context, info oauth2.TokenInfo) error {
@@ -187,6 +202,18 @@ func (ts *TokenStore) GetByRefresh(ctx context.Context, refresh string) (oauth2.
 	return ts.toTokenInfo(token.Data), nil
 }
 
+// SetStdout set error output
+func (ts *TokenStore) SetStdout(stdout io.Writer) *TokenStore {
+	ts.stdout = stdout
+	return ts
+}
+
+// Close close the store
+func (ts *TokenStore) Close() {
+	ts.ticker.Stop()
+	//_ = ts.db.DB().Close()
+}
+
 func (ts *TokenStore) toTokenInfo(data string) oauth2.TokenInfo {
 	var t models.Token
 	err := json.Unmarshal([]byte(data), &t)
@@ -194,4 +221,33 @@ func (ts *TokenStore) toTokenInfo(data string) oauth2.TokenInfo {
 		return nil
 	}
 	return &t
+}
+
+func (ts *TokenStore) gc() {
+	for range ts.ticker.C {
+		ts.cleanup()
+	}
+}
+
+func (ts TokenStore) cleanup() {
+	for range ts.ticker.C {
+		now := time.Now().Unix()
+		var count int64
+		if err := ts.db.Table(ts.table).Where("expired_at <= ?", now).Or("code = ? and access = ? AND refresh = ?", "", "", "").Count(&count).Error; err != nil {
+			ts.errorf("%s\n", err)
+			return
+		}
+		if count > 0 {
+			if err := ts.db.Table(ts.table).Where("expired_at <= ?", now).Or("code = ? and access = ? AND refresh = ?", "", "", "").Unscoped().Delete(&Token{}).Error; err != nil {
+				ts.errorf("%s\n", err)
+			}
+		}
+	}
+}
+
+func (ts *TokenStore) errorf(format string, args ...interface{}) {
+	if ts.stdout != nil {
+		buf := fmt.Sprintf(format, args...)
+		ts.stdout.Write([]byte(buf))
+	}
 }
