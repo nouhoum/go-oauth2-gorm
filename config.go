@@ -14,7 +14,6 @@ const (
 
 type Config struct {
 	DSN             string
-	Table           string
 	MaxIdleConns    int
 	MaxOpenConns    int
 	ConnMaxLifetime time.Duration

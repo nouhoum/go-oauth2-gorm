@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	defaultTable = "oauth2_token"
+	defaultTokenTable  = "oauth2_token"
+	defaultClientTable = "oauth2_client"
 )
 
 type Token struct {
@@ -38,13 +39,12 @@ type TokenStore struct {
 	ticker *time.Ticker
 }
 
-func NewTokenStore(cfg *Config, gcInterval int) *TokenStore {
+func NewTokenStore(cfg *Config, table string, gcInterval int) *TokenStore {
 	if cfg == nil {
 		panic(errors.New("db config is null"))
 	}
 
 	var d gorm.Dialector
-
 	switch cfg.DBType {
 	case PostgresSQL:
 		d = postgres.New(postgres.Config{
@@ -71,22 +71,21 @@ func NewTokenStore(cfg *Config, gcInterval int) *TokenStore {
 	if err != nil {
 		panic(err)
 	}
-
 	sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
 	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
 	sqlDB.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 
-	return NewTokenStoreWithDB(cfg, db, gcInterval)
+	return NewTokenStoreWithDB(cfg, db, table, gcInterval)
 }
 
-func NewTokenStoreWithDB(cfg *Config, db *gorm.DB, gcInterval int) *TokenStore {
+func NewTokenStoreWithDB(cfg *Config, db *gorm.DB, table string, gcInterval int) *TokenStore {
 	ts := &TokenStore{
 		db:    db,
-		table: defaultTable,
+		table: defaultTokenTable,
 	}
 
-	if cfg.Table != "" {
-		ts.table = cfg.Table
+	if table != "" {
+		ts.table = table
 	}
 
 	interval := 600
@@ -105,12 +104,12 @@ func NewTokenStoreWithDB(cfg *Config, db *gorm.DB, gcInterval int) *TokenStore {
 }
 
 func (ts TokenStore) Create(ctx context.Context, info oauth2.TokenInfo) error {
-	v, err := json.Marshal(info)
+	data, err := json.Marshal(info)
 	if err != nil {
 		return err
 	}
 	token := &Token{
-		Data: string(v),
+		Data: string(data),
 	}
 
 	if code := info.GetCode(); code != "" {
