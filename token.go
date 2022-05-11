@@ -252,6 +252,6 @@ func (ts TokenStore) cleanup() {
 func (ts *TokenStore) errorf(format string, args ...interface{}) {
 	if ts.stdout != nil {
 		buf := fmt.Sprintf(format, args...)
-		ts.stdout.Write([]byte(buf))
+		_, _ = ts.stdout.Write([]byte(buf))
 	}
 }
