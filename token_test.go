@@ -34,6 +34,13 @@ func TestTokenStore(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Nil(t, access, "store.GetByAccess")
 
+	//Remove by code
+	err = store.RemoveByCode(ctx, info.GetCode())
+	assert.Nil(t, err)
+	unknownToken, err := store.GetByCode(ctx, info.GetCode())
+	assert.Nil(t, err, "store.GetByCode")
+	assert.Nil(t, unknownToken, "store.GetByCode")
+
 	//access token
 	info2 := &models.Token{
 		ClientID:      "client1",
@@ -49,9 +56,17 @@ func TestTokenStore(t *testing.T) {
 	assert.Nil(t, err, "store.Create")
 	token, err = store.GetByAccess(ctx, info2.GetAccess())
 	assert.Nil(t, err, "store.GetByAccess")
+	assert.NotNil(t, token.GetAccess())
 	assert.Equal(t, info2.Access, token.GetAccess())
 
 	code, err := store.GetByCode(ctx, "...")
 	assert.Nil(t, err)
 	assert.Nil(t, code, "store.GetByCode")
+
+	//Remove access code
+	err = store.RemoveByAccess(ctx, info2.GetAccess())
+	//assert.Nil(t, err)
+	unknownAccess, err := store.GetByAccess(ctx, info2.GetAccess())
+	assert.Nil(t, err, "store.GetAccess")
+	assert.Nil(t, unknownAccess, "store.GetAccess")
 }
