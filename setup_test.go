@@ -12,6 +12,8 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 const (
@@ -29,6 +31,7 @@ type PGConfig struct {
 var dbPort int
 var dbHost string
 var cfg = PGConfig{User: "test", Database: "test", Password: "test", Port: 5432}
+var db *gorm.DB
 
 func TestMain(m *testing.M) {
 	log.Println("==== TEST MAIN ====")
@@ -79,6 +82,14 @@ func TestMain(m *testing.M) {
 	dbHost = containerHost
 	dbPort = containerPort.Int()
 
+	dsn := fmt.Sprintf("host=%s user=test password=test dbname=test port=%d sslmode=disable", containerHost, containerPort.Int())
+	gdb, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gorm.Open %v\n", err)
+		os.Exit(1)
+	}
+
+	db = gdb
 	code := m.Run()
 
 	_ = pg.Terminate(ctx)
