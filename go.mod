@@ -1,4 +1,4 @@
-module github.com/nouhoum/go-oauth2-gorm
+module github.com/nouhoum/go-oauth2-gorm/v4
 
 go 1.18
 
