@@ -215,7 +215,6 @@ func (ts *TokenStore) SetStdout(stdout io.Writer) *TokenStore {
 // Close close the store
 func (ts *TokenStore) Close() {
 	ts.ticker.Stop()
-	//_ = ts.db.DB().Close()
 }
 
 func (ts *TokenStore) toTokenInfo(data string) oauth2.TokenInfo {

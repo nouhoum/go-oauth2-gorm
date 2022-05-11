@@ -132,7 +132,14 @@ func (ts *ClientStore) RemoveByID(ctx context.Context, id string) error {
 }
 
 func (cs *ClientStore) toClientInfo(data string) (oauth2.ClientInfo, error) {
+	if data == "" {
+		return nil, nil
+	}
+
 	var cm models.Client
 	err := json.Unmarshal([]byte(data), &cm)
+	if err != nil {
+		return nil, err
+	}
 	return &cm, err
 }
