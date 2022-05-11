@@ -97,7 +97,7 @@ func (cs *ClientStore) GetByID(ctx context.Context, id string) (oauth2.ClientInf
 		return nil, nil
 	}
 
-	var client Client
+	var client *Client
 	if err := cs.db.WithContext(ctx).Table(cs.table).
 		Where("id = ?", id).
 		Find(&client).Error; err != nil {
@@ -114,7 +114,7 @@ func (cs *ClientStore) Create(ctx context.Context, info oauth2.ClientInfo) error
 		return err
 	}
 
-	client := Client{
+	client := &Client{
 		ID:     info.GetID(),
 		Secret: info.GetSecret(),
 		Domain: info.GetDomain(),
